@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\BookingRequest;
 use App\Models\Booking;
 use App\Models\Payment;
-use Carbon\Carbon;
+use Stripe\Stripe;
+use Stripe\Charge;
 use Illuminate\Http\Request;
 
 class BookingController extends Controller
@@ -15,7 +16,12 @@ class BookingController extends Controller
      */
     public function index()
     {
-        $bookings = Booking::query()->paginate(5);
+        $bookings = Booking::query();
+        $flight = request()->query("flight",null);
+        if($flight){
+            $bookings->where("flight_id",$flight);
+        }
+        $bookings = $bookings->paginate(5);
         return response()->json([
             "success"=>true,
             "data"=>$bookings
@@ -52,16 +58,27 @@ class BookingController extends Controller
 
     public function checkout(Booking $booking){
         $total = $booking->flight->price * ($booking->passengers()->count() + 1);
-        Payment::create([
-            "booking_id"=>$booking->id,
-            "payment_method"=>"visa_card",
-            "payment_status"=>"done",
-            "payment_date"=>now()->format("Y-m-d"),
-            "amount"=>$total
+
+
+        Stripe::setApiKey(env('STRIPE_SECRET_KEY'));
+        $charge = Charge::create([
+            'amount' => ($total * 100), // Amount in cents
+            'currency' => 'usd',
+            'description' => 'Test charge',
+            'source' => "tok_visa",
         ]);
-        $booking->update([
-            "status"=>"confirmed"
-        ]);
+        if($charge->status == "succeeded"){
+            Payment::create([
+                "booking_id"=>$booking->id,
+                "payment_method"=>"visa_card",
+                "payment_status"=>"done",
+                "payment_date"=>now()->format("Y-m-d"),
+                "amount"=>$total
+            ]);
+            $booking->update([
+                "status"=>"confirmed"
+            ]);
+        }
         return response()->json([
             "success"=>true,
             "message"=>"Payment for booking done !"

@@ -13,10 +13,24 @@ class FlightController extends Controller
      */
     public function index()
     {
-        $flight = Flight::query()->paginate(5);
+        $flights = Flight::query();
+        $departure_date = request()->query("departure-date",null);
+        $departure_airport = request()->query("departure-airport",null);
+        $arrival_airport = request()->query("arrival-airport",null);
+
+        if($departure_date){
+             $flights->where('departure_date',$departure_date);
+        }
+        if($departure_airport && $arrival_airport){
+            $flights->where("departure_airport",$departure_airport)
+            ->where("arrival_airport",$arrival_airport);
+        }
+        $flights = $flights->paginate(5);
         return response()->json([
             "success"=>true,
-            "data"=>$flight
+            "data"=>$flights,
+            "dep"=>$departure_airport,
+            "to"=>$arrival_airport
         ]);
     }
 
