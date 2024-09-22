@@ -59,7 +59,6 @@ class BookingController extends Controller
     public function checkout(Booking $booking){
         $total = $booking->flight->price * ($booking->passengers()->count() + 1);
 
-
         Stripe::setApiKey(env('STRIPE_SECRET_KEY'));
         $charge = Charge::create([
             'amount' => ($total * 100), // Amount in cents
@@ -78,11 +77,16 @@ class BookingController extends Controller
             $booking->update([
                 "status"=>"confirmed"
             ]);
+            return response()->json([
+                "success"=>true,
+                "message"=>"Payment for booking done !"
+            ]);
+        }else{
+            return response()->json([
+                "success"=>false,
+                "message"=>"Payment Failed"
+            ]);
         }
-        return response()->json([
-            "success"=>true,
-            "message"=>"Payment for booking done !"
-        ]);
     }
     /**
      * Display the specified resource.
